@@ -7,20 +7,39 @@ class DictVectorizer:
     def fit(self, X):
         self.feature_to_index = {}
         self.index_to_feature = {}
+        self.index_to_feature_type = {}
+
+        if isinstance(X, dict):
+            X = [X]
 
         for x in X:
             for feature, val in x.items():
                 if isinstance(val, str):
                     feature = f"{feature}---{val}"
+
                 if feature in self.feature_to_index:
                     continue
                 else:
-                    self.feature_to_index[feature] = len(self.feature_to_index)
-                    self.index_to_feature[self.feature_to_index[feature]] = feature
-                                  
-        
+                    index = len(self.feature_to_index)
+                    self.feature_to_index[feature] = index
+                    self.index_to_feature[index] = feature
+
+                    if isinstance(val, str) or isinstance(val, bool):
+                        # this lets us know if a value (e.g. 1) represents a categoy or a number
+                        self.index_to_feature_type[index] = 'categorical'
+                    else:
+                        self.index_to_feature_type[index] = 'numerical'
+                        
+
     def fit_transform(self, X):
         self.fit(X)
+        return self.transform(X)
+
+
+    def transform(self, X):
+        if isinstance(X, dict):
+            X = [X]
+
         data = np.zeros((len(X), len(self.feature_to_index)))
         for i, x in enumerate(X):
             for feature, val in x.items():
