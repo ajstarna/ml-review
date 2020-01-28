@@ -1,6 +1,5 @@
 ## code seems to be working for categorical features
 ## https://www.cise.ufl.edu/~ddd/cap6635/Fall-97/Short-papers/2.htm
-## TODO: extend to real-numbered variables=
 
 import math
 from collections import defaultdict
@@ -54,7 +53,7 @@ class CategoricalNode(Node):
         self.category_children = {}
 
     def evaluate(self, x):
-        print(f'evaluating index = {self.feature_index} and val = {x[self.feature_index]}')
+        #print(f'evaluating index = {self.feature_index} and val = {x[self.feature_index]}')
         feature_val = x[self.feature_index]
         child = self.category_children[feature_val]
         return child.evaluate(x)
@@ -115,9 +114,16 @@ class DecisionTreeClassifier:
             return
         self.root.print_self_and_subtree(indent_level=0)
 
-    def fit(self, X, Y, index_to_feature_type):
+
+    def set_index_to_feature_type(self, index_to_feature_type):
+        self.index_to_feature_type = index_to_feature_type
+
+    def fit(self, X, Y, index_to_feature_type=None):
         assert(len(X) == len(Y))
         self.used_indices = set()
+        if index_to_feature_type is None:
+            index_to_feature_type = self.index_to_feature_type
+
         self.root = self.recursively_build_tree(X, Y, index_to_feature_type)
 
     def recursively_build_tree(self, X, Y, index_to_feature_type):
@@ -127,7 +133,7 @@ class DecisionTreeClassifier:
             # end once we have a terminal
             return new_node
         self.used_indices.add(new_node.feature_index)
-        print(f'using index = {new_node.feature_index}')
+        #print(f'using index = {new_node.feature_index}')
     
         for feature_key in X_split:
             new_node.add_child_from_feature_key(feature_key, self.recursively_build_tree(X_split[feature_key], Y_split[feature_key], index_to_feature_type))
@@ -196,10 +202,10 @@ class DecisionTreeClassifier:
     def find_split(self, X, Y, index_to_feature_type):
         sum_Y = sum(Y)
         if sum_Y == len(Y):
-            print('positive endpoint')
+            #print('positive endpoint')
             return PositiveTerminalNode(), None, None
         if sum_Y == 0:
-            print('negative endpoint')
+            #print('negative endpoint')
             return NegativeTerminalNode(), None, None
 
         if len(self.used_indices) == len(X[0]):
@@ -240,8 +246,10 @@ class DecisionTreeClassifier:
         return best_node, best_X_split, best_Y_split
 
 
-    def predict(self, x):
-
-        return self.root.evaluate(x[0])
+    def predict(self, X):
+        predictions = []
+        for x in X:
+            predictions.append(self.root.evaluate(x))
+        return predictions
 
 
