@@ -5,8 +5,10 @@ import math
 from collections import defaultdict
 from collections import Counter
 
-import random
 
+import numpy as np
+
+############## For Classifier Tree ##############
 
 def entropy(Y):
     counts_per_class = Counter(Y)
@@ -19,17 +21,55 @@ def entropy(Y):
 assert(round(entropy([0,0,0,0,0,1,1,1,1,1,1,1,1,1]), 2) == 0.94)
 
 def gain(current_entropy, Y_split, total_Y_len):
-    gain_val = current_entropy
+    # information gain, AKA reduction of entropy
+    # we want each split to be similar to itself.
+    # All 0s or all 1s is zero entropy, so the reduction will be maxium
+    new_entropy = 0
     for current_split in Y_split:
-        gain_val -= (len(current_split)/total_Y_len) * entropy(current_split)
-    return gain_val
-    #return random.randint(0,100)
+        new_entropy += (len(current_split)/total_Y_len) * entropy(current_split)
+    reduction = current_entropy - new_entropy
+    return reduction
+
+############## For Regressor Tree ##############
+
+def standard_deviation(Y):
+    # could just use np.std, but this is cooler
+    std =  np.sqrt(np.mean((Y - Y.mean())**2))
+    print(f'std = {std}')
+    return std
+
+def standard_deviation_reduction(current_standard_deviation, Y_split, total_Y_len):
+    # when deciding on a split, we want the new subsets to have an overall lower standard deviation
+    # i.e. within each split, the data is more similar to eachother
+    new_standard_deviation = 0
+    # new standard deviation is the weighted after of the separate standard deviation
+    for current_split in Y_split:
+        new_standard_deviation += (len(current_split)/total_Y_len) * standard_deviation(current_split)
+
+    reduction = current_standard_deviation - new_standard_deviation # if new standard deviation is lower, then reduction is postive,
+    return reduction
+
+
 
 
 class Node:
     def __init__(self, feature_index):
         self.feature_index = feature_index
-                
+
+
+class TerminalNode:
+    def __init__(self, return_val):
+        self.return_val = return_val
+
+    def evaluate(self, *args):
+        return self.return_val
+
+    def print_self_and_subtree(self, indent_level:int):
+        tab = "\t" * indent_level
+        print(f'{tab}terminal val of {self.return_val}')
+
+
+'''                
 class PositiveTerminalNode:
     def evaluate(self, x):
         return 1
@@ -45,6 +85,7 @@ class NegativeTerminalNode:
     def print_self_and_subtree(self, indent_level:int):
         tab = "\t" * indent_level
         print(f'{tab}negative terminal')
+'''
 
 class CategoricalNode(Node):
     def __init__(self, feature_index, all_feature_vals=None):
@@ -102,7 +143,7 @@ class NumericalNode(Node):
 
 
 
-class DecisionTreeClassifier:
+class DecisionTreeBase:
 
     def __init__(self):
         pass
@@ -129,7 +170,7 @@ class DecisionTreeClassifier:
     def recursively_build_tree(self, X, Y, index_to_feature_type):
         new_node, X_split, Y_split = self.find_split(X,Y, index_to_feature_type)        
         #if new_node.is_positive_terminal or new_node.is_negative_terminal:
-        if isinstance(new_node, PositiveTerminalNode) or isinstance(new_node, NegativeTerminalNode):
+        if isinstance(new_node, TerminalNode):
             # end once we have a terminal
             return new_node
         self.used_indices.add(new_node.feature_index)
@@ -157,16 +198,20 @@ class DecisionTreeClassifier:
 
         node = CategoricalNode(feature_index=feature_index)#, all_feature_vals=all_feature_vals)
 
+        for val in X_split.keys():
+            X_split[val] = np.array(X_split[val])
+        for val in Y_split.keys():
+            Y_split[val] = np.array(Y_split[val])
         return node, X_split, Y_split
 
 
-    def split_data_for_given_numerical_feature_index(self, X, Y, feature_index, current_entropy):
+    def split_data_for_given_numerical_feature_index(self, X, Y, feature_index, current_score):
         # given an index/feature to look at, split X and Y into groups
         # The feature is numerical, look over all possible <= splits on values and return the 
         # best split
         sorted_x_y = sorted([(x, y) for x, y in zip(X,Y)], key=lambda tup: tup[0][feature_index])
         used_vals = set()
-        best_gain = -1
+        best_improvement = float('-inf')
         for i, x_y in enumerate(sorted_x_y):
             x, y = x_y
             feature_val = x[feature_index]
@@ -183,12 +228,12 @@ class DecisionTreeClassifier:
                 else:
                     keep_extending = False
 
-            less_Y = [y for x,y in sorted_x_y[0:split_index]]
-            more_Y = [y for x,y in sorted_x_y[split_index:]]
+            less_Y = np.array(y for x,y in sorted_x_y[0:split_index])
+            more_Y = np.array(y for x,y in sorted_x_y[split_index:])
             Y_split = (less_Y, more_Y)
-            current_gain = gain(current_entropy, Y_split, len(Y))
-            if current_gain > best_gain:
-                best_gain = current_gain
+            new_improvement = self.improvement_function(current_score, Y_split, len(Y))
+            if new_improvement > best_improvement:
+                best_improvement = new_improvement
                 threshold_val = feature_val
                 less_X = [x for x,y in sorted_x_y[0:split_index]]
                 more_X = [x for x,y in sorted_x_y[split_index:]]
@@ -218,8 +263,9 @@ class DecisionTreeClassifier:
                 print('taking best guest negative')
                 return NegativeTerminalNode(), None, None
                                            
-        current_entropy = entropy(Y)
-        best_gain = -1
+        current_score = self.score_function(Y)
+
+        best_improvement = float('-inf')
         best_Y_split = None
         best_Y_split = None
         for index in range(len(X[0])):
@@ -229,15 +275,13 @@ class DecisionTreeClassifier:
                 continue
                                            
             if index_to_feature_type[index] == 'categorical':
-                #print(f'index = {index}, categorical')
-                                           
                 node, X_split, Y_split = self.split_data_for_given_categorical_feature_index(X, Y, index)
             else:
-                node, X_split, Y_split = self.split_data_for_given_numerical_feature_index(X, Y, index, current_entropy)
+                node, X_split, Y_split = self.split_data_for_given_numerical_feature_index(X, Y, index, current_score)
 
-            gain_of_split = gain(current_entropy, Y_split.values(), len(Y))
-            if gain_of_split > best_gain:
-                best_gain = gain_of_split
+            improvement_of_split = self.improvement_function(current_score, Y_split.values(), len(Y))
+            if improvement_of_split > best_improvement:
+                best_improvement = improvement_of_split
                 best_node = node
                 best_X_split = X_split
                 best_Y_split = Y_split
@@ -253,3 +297,17 @@ class DecisionTreeClassifier:
         return predictions
 
 
+
+class DecisionTreeClassifier(DecisionTreeBase):
+    def score_function(self, *args):
+        return entropy(*args)
+
+    def improvement_function(self, *args):
+        return gain(*args)
+
+class DecisionTreeRegressor(DecisionTreeBase):
+    def score_function(self, *args):
+        return standard_deviation(*args)
+
+    def improvement_function(self, *args):
+        return standard_deviation_reduction(*args)

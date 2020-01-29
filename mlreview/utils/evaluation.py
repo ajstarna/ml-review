@@ -17,10 +17,14 @@ def p_r_f(predictions, Y):
                 fp += 1
             else:
                 fn += 1
-    p = tp / (tp + fp)
-    r = tp / (tp + fn)
-    f = 2*p*r / (p + r)
 
+    try:
+        p = tp / (tp + fp)
+        r = tp / (tp + fn)
+        f = 2*p*r / (p + r)
+    except:
+        # if undefined, just default to all 0
+        p, r, f = 0, 0, 0
     return p,r,f
 
 def KFolds(X, Y, num_folds=5):
