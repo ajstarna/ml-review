@@ -40,7 +40,7 @@ class DictVectorizer:
         if isinstance(X, dict):
             X = [X]
 
-        data = np.zeros((len(X), len(self.feature_to_index)))
+        data = np.zeros((len(X), len(self.feature_to_index)), dtype=int)
         for i, x in enumerate(X):
             for feature, val in x.items():
                 if isinstance(val, str):
