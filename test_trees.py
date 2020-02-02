@@ -113,7 +113,7 @@ def test_decision_tree_regressor_boston_house():
     tree.set_index_to_feature_type(index_to_feature_type)
     tree.fit(d.data, d.target)
     tree.print_tree()
-    cross_validation(tree, d.data, d.target, task_type='regression')
+    cross_validation(tree, d.data, d.target, task_type='regression', num_folds=10)
 
 
 

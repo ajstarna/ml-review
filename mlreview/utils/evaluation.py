@@ -29,10 +29,8 @@ def p_r_f(predictions, Y):
 
 
 def mean_squared_error(predictions, Y):
-    squared_errors = [(pred-y)**2 for pred, y in zip(predictions, Y)]
-    print(squared_errors)
-
-    return sum(squared_errors)/len(squared_errors)
+    squared_errors = ((pred-y)**2 for pred, y in zip(predictions, Y))
+    return sum(squared_errors)/len(Y)
 
 
 def KFolds(X, Y, num_folds=5):
@@ -65,14 +63,24 @@ def cross_validation(model, X, Y, task_type, num_folds=5):
     # for evaluating num_folds of cross validation
     
     assert(task_type in {'classification', 'regression'})
-    predictions = np.array([])
-    truth = np.array([])
+    predictions = None
+    truth = None
     for training_X, training_Y, holdout_X, holdout_Y in KFolds(X, Y, num_folds=num_folds):
         model.fit(training_X, training_Y)
         #model.print_tree()
         current_predictions = model.predict(holdout_X)
-        predictions = np.concatenate((predictions, current_predictions))
-        truth = np.concatenate((truth, holdout_Y))
+        print('preds')
+        print(predictions)
+        print('current preds')
+        print(current_predictions)
+        if predictions is None:
+            predictions = current_predictions
+        else:
+            predictions = np.concatenate((predictions, current_predictions))
+        if truth is None:
+            truth = holdout_Y
+        else:
+            truth = np.concatenate((truth, holdout_Y))
 
     print(f'predictions = {predictions}')
     print(f'truth = {truth}')
