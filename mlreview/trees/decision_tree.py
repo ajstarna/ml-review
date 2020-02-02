@@ -133,6 +133,13 @@ class NumericalNode(Node):
 
 
 class DecisionTreeBase:
+
+    def __init__(self, max_depth=None):
+        if max_depth is None:
+            max_depth = float('inf')
+        self.max_depth = max_depth
+
+
     def print_tree(self):
         if self.root is None:
             print('root is None')
@@ -159,17 +166,19 @@ class DecisionTreeBase:
         if index_to_feature_type is None:
             index_to_feature_type = self.index_to_feature_type
 
-        self.root = self.recursively_build_tree(X, Y, index_to_feature_type)
+        self.root = self.recursively_build_tree(X, Y, depth=0, index_to_feature_type=index_to_feature_type)
 
-    def recursively_build_tree(self, X, Y, index_to_feature_type):
-        new_node, X_split, Y_split = self.find_split(X,Y, index_to_feature_type)        
+    def recursively_build_tree(self, X, Y, depth, index_to_feature_type):
+        new_node, X_split, Y_split = self.find_split(X, Y, depth, index_to_feature_type)        
+        depth += 1
         if isinstance(new_node, TerminalNode):
             # end once we have a terminal
             return new_node
-        #self.used_indices.add(new_node.feature_index)
     
         for feature_key in X_split:
-            new_node.add_child_from_feature_key(feature_key, self.recursively_build_tree(X_split[feature_key], Y_split[feature_key], index_to_feature_type))
+            new_node.add_child_from_feature_key(feature_key, 
+                                                self.recursively_build_tree(X_split[feature_key], Y_split[feature_key], 
+                                                                            depth, index_to_feature_type))
 
         return new_node
         
@@ -239,12 +248,9 @@ class DecisionTreeBase:
         raise NotImplementedError()
 
                                            
-    def find_split(self, X, Y, index_to_feature_type):                   
-        #print()
-        #print(f'about to split X = {X} and Y = {Y}')
+    def find_split(self, X, Y, depth, index_to_feature_type):                   
         current_score = self.score_function(Y)
-        #print(f'current score = {current_score}')
-        terminal_node = self.possibly_create_terminal_node(X, Y, current_score)
+        terminal_node = self.possibly_create_terminal_node(X, Y, depth, current_score)
         if terminal_node is not None:
             # if we are at the end, for any condition, then terminal_node will be non-None,
             #print(f'terminal node with val of {terminal_node.return_val}')
@@ -254,11 +260,6 @@ class DecisionTreeBase:
         best_Y_split = None
         best_Y_split = None
         for index in range(len(X[0])):
-            # each index into x corresponds to a single feature
-            #if index in self.used_indices:
-            #    # can't split on the same feature again
-            #    continue
-                                           
             if index_to_feature_type[index] == 'categorical':
                 node, X_split, Y_split = self.split_data_for_given_categorical_feature_index(X, Y, index)
             else:
@@ -297,7 +298,11 @@ class DecisionTreeClassifier(DecisionTreeBase):
     def improvement_function(self, *args):
         return gain(*args)
 
-    def possibly_create_terminal_node(self, X, Y, current_entropy):
+    def possibly_create_terminal_node(self, X, Y, depth, *args):
+
+        if depth > self.max_depth:
+            mean = y.mean()
+            return TerminalNode(return_val=round(mean))
         sum_Y = sum(Y)
         if sum_Y == len(Y):
             #print('positive endpoint')
@@ -307,23 +312,12 @@ class DecisionTreeClassifier(DecisionTreeBase):
             #print('negative endpoint')
             return TerminalNode(return_val=0)
 
-        '''
-        if len(self.used_indices) == len(X[0]):
-            # we have already split on each attribute, and this is as good as we get
-            # TODO: is this actually needed? Find proof of algorithm
-            if sum_Y >= (len(Y) / 2):
-                print('taking best guest positive')
-                return TerminalNode(return_val=1)
-            else:
-                print('taking best guest negative')
-                return TerminalNode(return_val=0)
-        '''
-
         return None
 
 class DecisionTreeRegressor(DecisionTreeBase):
 
-    def __init__(self, coefficient_of_deviation_threshold=0.1):
+    def __init__(self, max_depth=None, coefficient_of_deviation_threshold=0.1):
+        super().__init__(max_depth)
         self.coefficient_of_deviation_threshold = coefficient_of_deviation_threshold
 
     def score_function(self, *args):
@@ -332,9 +326,10 @@ class DecisionTreeRegressor(DecisionTreeBase):
     def improvement_function(self, *args):
         return standard_deviation_reduction(*args)
 
-    def possibly_create_terminal_node(self, X, Y, curernt_standard_deviation):
+    def possibly_create_terminal_node(self, X, Y, depth, current_standard_deviation):
         mean = Y.mean()
-        if curernt_standard_deviation / mean < self.coefficient_of_deviation_threshold:
+        if current_standard_deviation / mean < self.coefficient_of_deviation_threshold \
+                or depth > self.max_depth:
             #or len(self.used_indices) == len(X[0]):
             # our coefficient of deviation is low enough that we hit the threshold OR
             # we have already split on each attribute, and this is as good as we get

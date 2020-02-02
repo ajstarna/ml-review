@@ -82,8 +82,8 @@ def cross_validation(model, X, Y, task_type, num_folds=5):
         else:
             truth = np.concatenate((truth, holdout_Y))
 
-    print(f'predictions = {predictions}')
-    print(f'truth = {truth}')
+    #print(f'predictions = {predictions}')
+    #print(f'truth = {truth}')
 
     if task_type == 'classification':
         p,r,f = p_r_f(predictions, truth)
