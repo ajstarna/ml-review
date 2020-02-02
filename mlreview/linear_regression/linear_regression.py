@@ -4,9 +4,10 @@ import numpy as np
 
 class LinearRegressor:
 
-    def __init__(self, max_iters=1000, learning_rate=0.001, stopping_delta=0.0001):
+    def __init__(self, max_iters=5000, learning_rate=0.001, stopping_delta=0.0001):
         '''
         max_iters the maximum number of updates we will make to our weights and bias
+            - I found that 1000 iters wasn't enough for the sklearn data sets, but 5k decent
         learning_rate is how fast we adjust our parameters each step
         stopping_delta is how similar the cost of two consecutive predictions needs to be before we stop early
         '''
@@ -34,31 +35,22 @@ class LinearRegressor:
         cost = mean_squared_error(predictions, Y)
         print(cost)
 
-        for i in range(self.max_iters):
-            print(f'iter = {i}')
+        for iter in range(self.max_iters):
+            #print(f'iter = {iter}')
             #print(f'b = {self.b}')
             #print(f'thetas = {self.thetas}')
         
             diffs = Y - predictions
-            #print(f'diffs dtype = {diffs.dtype}')
-            grad_b = np.sum( (-1/X.shape[0]) * diffs)
+            grad_b = (-1/X.shape[0]) * np.sum(diffs)
             #print(f'grad_b = {grad_b}')
             self.b -= grad_b * self.learning_rate
 
-            #X_diffs = X * diffs
-            #print(f'X_diffs = {X_diffs}')
-
             # sum each column, since each column represents each m example for a single theta_i
-            grad_theta = np.sum((-1/X.shape[0]) * X * diffs, axis=0)
-            #print(f'grad_theta_sum = {grad_theta}')
-            #print(f'grad_theta_sum shape = {grad_theta.shape}')
+            grad_theta = (-1/X.shape[0]) * np.sum( X * diffs, axis=0)
             grad_theta.shape = (num_features,1)
-            #print(f'grad_theta_sum = {grad_theta}')
             self.thetas -= grad_theta * self.learning_rate
             predictions = X.dot(self.thetas) + self.b
-            #print(f'predictions = {predictions}')
             new_cost = mean_squared_error(predictions, Y)
-            #print(f'new_cost = {new_cost}')
             if abs(new_cost - cost) < self.stopping_delta:
                 print('stopping early since the new cost is too similar to the old cost')
                 break
