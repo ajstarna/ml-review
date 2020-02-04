@@ -301,7 +301,7 @@ class DecisionTreeClassifier(DecisionTreeBase):
     def possibly_create_terminal_node(self, X, Y, depth, *args):
 
         if depth > self.max_depth:
-            mean = y.mean()
+            mean = Y.mean()
             return TerminalNode(return_val=round(mean))
         sum_Y = sum(Y)
         if sum_Y == len(Y):
