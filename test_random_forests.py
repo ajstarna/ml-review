@@ -54,6 +54,7 @@ def test_random_forest_classifier_toy():
     #print(f"predicting: ['sunny', 'mild', 'normal', 'strong'] = {x2}")
     #to_predict = np.array([x1, x2])
     #print(to_predict)
+
     #print(to_predict.shape)
     print(x)
     print(x.shape)
@@ -65,15 +66,24 @@ def test_random_forest_classifier_toy():
 def test_random_forest_classifier_breast_cancer():
     # this actually takes many seconds, even though the data is small
     d = load_breast_cancer()
-    forest = RandomForestClassifier(max_depth=3)
+    forest = RandomForestClassifier(num_trees=50, max_depth=None, num_features_to_sample_from=(int(d.data.shape[1]/3)))
     index_to_feature_type = defaultdict(lambda: 'numerical')
     forest.set_index_to_feature_type(index_to_feature_type)
-    forest.fit(d.data, d.target)
+    #forest.fit(d.data, d.target)
     #forest.print_tree()
-    cross_validation(forest, d.data, d.target, task_type='classification')
+    cross_validation(forest, d.data, d.target, num_folds=5, task_type='classification')
+    # with 5 folds, 10 trees, max_depth=None, num_features_to_sample_from = 1/3 of them (i.e. 10)
+    # p=0.9743589743589743, r=0.9633802816901409, f=0.9688385269121813
+    # with 5 folds, 10 trees, max_depth=None, num_features_to_sample_from = None (i.e. all 30)
+    # p=0.952513966480447, r=0.9605633802816902, f=0.9565217391304348
 
+    # yahoo! This ~confirms that sampling from a random subset of features at each node is better,
+    # since it leads to trees that are less correlated
 
-
+    # once more with more trees...
+    # with 5 folds, [[50 trees]], max_depth=None, num_features_to_sample_from = 1/3 of them (i.e. 10)
+    # p=0.9719101123595506, r=0.9774011299435028, f=0.9746478873239437
+    # really good results
 
 def test_decision_tree_regressor_toy():
     X = [

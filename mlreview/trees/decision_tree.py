@@ -134,10 +134,13 @@ class NumericalNode(Node):
 
 class DecisionTreeBase:
 
-    def __init__(self, max_depth=None):
+    def __init__(self, max_depth=None, num_features_to_sample_from=None):
         if max_depth is None:
             max_depth = float('inf')
         self.max_depth = max_depth
+        # for random forests; we may not want to look at all the features
+        # when we create a node
+        self.num_features_to_sample_from = num_features_to_sample_from
 
 
     def print_tree(self):
@@ -151,7 +154,21 @@ class DecisionTreeBase:
     def set_index_to_feature_type(self, index_to_feature_type):
         self.index_to_feature_type = index_to_feature_type
 
+    def feature_indices_to_sample(self, total_num_features):
+        if self.num_features_to_sample_from is None:
+            num_features_to_sample_from = total_num_features
+            #num_features_to_sample = int(math.log(num_features, 2)))
+        else:
+            num_features_to_sample_from = self.num_features_to_sample_from
+
+        #print(f'num features to sample from = {num_features_to_sample_from}')
+        #print(f'total num features = {total_num_features}')
+        sample_indices = np.random.choice(range(total_num_features), num_features_to_sample_from, replace=False)
+        #print(f'sample_indices = {sample_indices}')
+        return sample_indices
+
     def fit(self, X, Y, index_to_feature_type=None):
+        '''
         print()
         print()
         print()
@@ -160,7 +177,7 @@ class DecisionTreeBase:
         print('=====================================')
         print()
         print()
-
+        '''
         assert(len(X) == len(Y))
         #self.used_indices = set()
         if index_to_feature_type is None:
@@ -234,8 +251,8 @@ class DecisionTreeBase:
             if new_improvement > best_improvement:
                 best_improvement = new_improvement
                 threshold_val = feature_val
-                less_X = [x for x,y in sorted_x_y[0:split_index]]
-                more_X = [x for x,y in sorted_x_y[split_index:]]
+                less_X = np.array([x for x,y in sorted_x_y[0:split_index]])
+                more_X = np.array([x for x,y in sorted_x_y[split_index:]])
                 best_Y_split = {'less': less_Y, 'greater': more_Y}
                 best_X_split = {'less': less_X, 'greater': more_X}
 
@@ -243,7 +260,7 @@ class DecisionTreeBase:
         return node, best_X_split, best_Y_split
 
 
-    def possibly_create_terminal_node(self, X, Y):
+    def possibly_create_terminal_node(self, X, Y, *args):
         # the sub-classes implement this
         raise NotImplementedError()
 
@@ -256,10 +273,10 @@ class DecisionTreeBase:
             #print(f'terminal node with val of {terminal_node.return_val}')
             return terminal_node, None, None
 
-        best_improvement = float('-inf')
+        best_improvement = 0
         best_Y_split = None
         best_Y_split = None
-        for index in range(len(X[0])):
+        for index in self.feature_indices_to_sample(total_num_features=X.shape[1]):
             if index_to_feature_type[index] == 'categorical':
                 node, X_split, Y_split = self.split_data_for_given_categorical_feature_index(X, Y, index)
             else:
@@ -271,9 +288,13 @@ class DecisionTreeBase:
                 best_node = node
                 best_X_split = X_split
                 best_Y_split = Y_split
-            else:
-                pass
 
+        if best_Y_split is None:
+            # if couldn't actually find any improvement
+            # Note: is this possible, or just a sanity check hmm?
+            print("NO BETTER SPLIT SO LETS END ON TERMINAL")
+            terminal_node = self.create_terminal_node(Y)
+            return terminal_node, None, None
 
         #print(f'best node index = {best_node.feature_index}')
         #print(f'best improvement = {best_improvement}')
@@ -298,11 +319,14 @@ class DecisionTreeClassifier(DecisionTreeBase):
     def improvement_function(self, *args):
         return gain(*args)
 
-    def possibly_create_terminal_node(self, X, Y, depth, *args):
-
-        if depth > self.max_depth:
+    def create_terminal_node(self, Y, mean=None):
+        if mean is None:
             mean = Y.mean()
-            return TerminalNode(return_val=round(mean))
+        return TerminalNode(return_val=round(mean))
+
+    def possibly_create_terminal_node(self, X, Y, depth, *args):
+        if depth > self.max_depth:
+            return self.create_terminal_node(Y)
         sum_Y = sum(Y)
         if sum_Y == len(Y):
             #print('positive endpoint')
@@ -316,8 +340,10 @@ class DecisionTreeClassifier(DecisionTreeBase):
 
 class DecisionTreeRegressor(DecisionTreeBase):
 
-    def __init__(self, max_depth=None, coefficient_of_deviation_threshold=0.1):
-        super().__init__(max_depth)
+    def __init__(self, coefficient_of_deviation_threshold=0.1, **kwargs):
+        print('kwargs')
+        print(kwargs)
+        super().__init__(**kwargs)
         self.coefficient_of_deviation_threshold = coefficient_of_deviation_threshold
 
     def score_function(self, *args):
@@ -326,6 +352,11 @@ class DecisionTreeRegressor(DecisionTreeBase):
     def improvement_function(self, *args):
         return standard_deviation_reduction(*args)
 
+    def create_terminal_node(self, Y, mean=None):
+        if mean is None:
+            mean = Y.mean()
+        return TerminalNode(return_val=mean)
+
     def possibly_create_terminal_node(self, X, Y, depth, current_standard_deviation):
         mean = Y.mean()
         if current_standard_deviation / mean < self.coefficient_of_deviation_threshold \
@@ -333,5 +364,5 @@ class DecisionTreeRegressor(DecisionTreeBase):
             #or len(self.used_indices) == len(X[0]):
             # our coefficient of deviation is low enough that we hit the threshold OR
             # we have already split on each attribute, and this is as good as we get
-            return TerminalNode(return_val=mean)
+            return self.create_terminal_node(Y, mean=mean)
         return None

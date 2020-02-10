@@ -59,7 +59,7 @@ def test_decision_tree_classifier_breast_cancer():
     tree.fit(d.data, d.target)
     tree.print_tree()
     cross_validation(tree, d.data, d.target, task_type='classification')
-
+    # p=0.9371428571428572, r=0.923943661971831, f=0.9304964539007092
 
 
 
@@ -107,20 +107,20 @@ def test_decision_tree_regressor_toy():
 def test_decision_tree_regressor_boston_house():
     # this actually takes many seconds, even though the data is small
     d = load_boston()
-    print(d)
+    #print(d)
     tree = DecisionTreeRegressor(max_depth=3)
     index_to_feature_type = defaultdict(lambda: 'numerical')
     tree.set_index_to_feature_type(index_to_feature_type)
     tree.fit(d.data, d.target)
     tree.print_tree()
-    cross_validation(tree, d.data, d.target, task_type='regression', num_folds=5)
+    #cross_validation(tree, d.data, d.target, task_type='regression', num_folds=5)
 
 
 
 
 #test_decision_tree_classifier_toy()
 
-#test_decision_tree_classifier_breast_cancer()
+test_decision_tree_classifier_breast_cancer()
 
 #test_decision_tree_regressor_toy()
-test_decision_tree_regressor_boston_house()
+#test_decision_tree_regressor_boston_house()
