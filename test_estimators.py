@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from mlreview.trees.decision_tree import DecisionTreeClassifier
 from mlreview.trees.decision_tree import DecisionTreeRegressor
 from mlreview.utils.featurizing import DictVectorizer
@@ -7,10 +9,10 @@ import numpy as np
 from collections import defaultdict
 from sklearn.datasets import load_breast_cancer
 from sklearn.datasets import load_boston
+import argparse
 
 
-
-def test_decision_tree_classifier_toy():
+def test_classifier_toy(classifier):
     # decision tree people really want to know if they should play tennis
     X = [
         {'outlook': 'sunny', 'temperature': 'hot', 'humidity': 'high', 'wind': 'weak'},
@@ -35,35 +37,32 @@ def test_decision_tree_classifier_toy():
     data = vectorizer.fit_transform(X)
 
     print(vectorizer.feature_to_index)
-    tree = DecisionTreeClassifier()
     print(vectorizer.index_to_feature_type)
 
 
-    tree.set_index_to_feature_type(index_to_feature_type=vectorizer.index_to_feature_type)
-    tree.fit(data, Y)
-    tree.print_tree()
+    classifier.set_index_to_feature_type(index_to_feature_type=vectorizer.index_to_feature_type)
+    classifier.fit(data, Y)
+    # tree.print_tree()
     x = vectorizer.transform({'outlook': 'rain', 'temperature':'mild', 
                               'humidity': 'normal', 'wind': 'weak'})
     print(f"predicting: ['rain', 'mild', 'normal', 'weak'] = {x}")
-    print(tree.predict(x))
+    print(classifier.predict(x))
 
-    cross_validation(tree, data, Y, task_type='classification', num_folds =len(Y))
+    cross_validation(classifier, data, Y, task_type='classification', num_folds =len(Y))
 
 
-def test_decision_tree_classifier_breast_cancer():
+def test_classifier_breast_cancer(classifier):
     # this actually takes many seconds, even though the data is small
     d = load_breast_cancer()
-    tree = DecisionTreeClassifier(max_depth=3)
     index_to_feature_type = defaultdict(lambda: 'numerical')
-    tree.set_index_to_feature_type(index_to_feature_type)
-    tree.fit(d.data, d.target)
-    tree.print_tree()
-    cross_validation(tree, d.data, d.target, task_type='classification')
-    # p=0.9371428571428572, r=0.923943661971831, f=0.9304964539007092
+    classifier.set_index_to_feature_type(index_to_feature_type)
+    classifier.fit(d.data, d.target)
+    cross_validation(classifier, d.data, d.target, task_type='classification')
+    # p=0.9371428571428572, r=0.923943661971831, f=0.9304964539007092 for tree
 
 
 
-def test_decision_tree_regressor_toy():
+def test_regressor_toy(regressor):
     X = [
         {'outlook': 'rain', 'temperature': 'hot', 'humidity': 'high', 'wind': False},
         {'outlook': 'rain', 'temperature': 'hot', 'humidity': 'high', 'wind': True},
@@ -87,40 +86,63 @@ def test_decision_tree_regressor_toy():
     data = vectorizer.fit_transform(X)
 
     print(vectorizer.feature_to_index)
-    tree = DecisionTreeRegressor(max_depth=1)
     print(vectorizer.index_to_feature_type)
-    tree.set_index_to_feature_type(index_to_feature_type=vectorizer.index_to_feature_type)
+    regressor.set_index_to_feature_type(index_to_feature_type=vectorizer.index_to_feature_type)
 
 
-    tree.fit(data, Y)
-    tree.print_tree()
+    regressor.fit(data, Y)
+    #tree.print_tree()
     #x = vectorizer.transform({'outlook': 'rain', 'temperature':'mild', 
     #                          'humidity': 'normal', 'wind': False})
     #print(f"predicting: ['rain', 'mild', 'normal', False] = {x}")
 
-
-    #print(tree.predict(x))
-    print("NOW CROSS VAL")
-    cross_validation(tree, data, Y, task_type='regression', num_folds =len(Y))
+    cross_validation(regressor, data, Y, task_type='regression', num_folds =len(Y))
 
 
-def test_decision_tree_regressor_boston_house():
+def test_regressor_boston_house(regressor):
     # this actually takes many seconds, even though the data is small
     d = load_boston()
-    #print(d)
-    tree = DecisionTreeRegressor(max_depth=3)
     index_to_feature_type = defaultdict(lambda: 'numerical')
-    tree.set_index_to_feature_type(index_to_feature_type)
-    tree.fit(d.data, d.target)
-    tree.print_tree()
+    regressor.set_index_to_feature_type(index_to_feature_type)
+    regressor.fit(d.data, d.target)
+    #tree.print_tree()
     #cross_validation(tree, d.data, d.target, task_type='regression', num_folds=5)
 
 
 
 
-#test_decision_tree_classifier_toy()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
 
-test_decision_tree_classifier_breast_cancer()
+    parser.add_argument('--estimator', '-e', dest='estimator', required=True, 
+                        help='the type of estimator to use'
+                        )
+                        
+    parser.add_argument('--test_set', '-t', dest='test_set', default='all',
+                        help='the test set to use',
+                        )
+                        
+    args = parser.parse_args()
 
-#test_decision_tree_regressor_toy()
-#test_decision_tree_regressor_boston_house()
+    if args.estimator == 'tree':
+        classifier = DecisionTreeClassifier()
+        regressor = DecisionTreeRegressor(max_depth=1)
+    elif args.estimator == 'random_forest':
+        pass
+    elif args.estimator == 'linear_regression':
+        pass
+    elif args.estimator == 'ada_boost':
+        pass
+    
+
+    if args.test_set == 'ct':
+        test_classifier_toy(classifier)
+    elif args.test_set == 'cb':
+        test_classifier_breast_cancer(classifier)
+    elif args.test_set == 'rt':
+        test_regressor_toy(regressor)
+    elif args.test_set == 'rb':
+        test_regressor_boston_house(regressor)
+    else:
+        print('Unknown test set')
+

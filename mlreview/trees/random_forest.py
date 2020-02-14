@@ -45,17 +45,11 @@ class RandomForestBase:
 
     def predict(self, X):
         all_predictions  = [tree.predict(X) for tree in self.trees]
-        #print('all predictions')
-        #print(all_predictions)
         final = np.zeros(X.shape[0])
-        #print(f'final = {final}')
         for preds in all_predictions:
             final += preds
-        #print(f'sum = {final}, {type(final)}')        
         final /= self.num_trees
-        #print(f'average = {final}, {type(final)}')        
         final = np.around(final)
-        #print(f'around = {final}, {type(final)}')        
         return final
         
 
