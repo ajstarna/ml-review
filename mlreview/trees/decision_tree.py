@@ -150,7 +150,6 @@ class DecisionTreeBase:
             return
         self.root.print_self_and_subtree(indent_level=0)
 
-
     def set_index_to_feature_type(self, index_to_feature_type):
         self.index_to_feature_type = index_to_feature_type
 
@@ -221,13 +220,13 @@ class DecisionTreeBase:
         return node, X_split, Y_split
 
 
-    def split_data_for_given_numerical_feature_index(self, X, Y, feature_index, current_score):
-        # given an index/feature to look at, split X and Y into groups
-        # The feature is numerical, look over all possible <= splits on values and return the 
-        # best split
+    def generate_numerical_splits(self, X, Y, feature_index):
+        # For a given feature index, this generator yeilds all the possible splits based on x values
+        # at that given index. 
+        # The less_Xs all have a feature value less than OR EQUAL TO the returned feature_val, 
+        # while the more_Xs all have a feature val greater than
         sorted_x_y = sorted([(x, y) for x, y in zip(X,Y)], key=lambda tup: tup[0][feature_index])
         used_vals = set()
-        best_improvement = float('-inf')
         for i, x_y in enumerate(sorted_x_y):
             x, y = x_y
             feature_val = x[feature_index]
@@ -236,7 +235,7 @@ class DecisionTreeBase:
             else:
                 used_vals.add(feature_val)
 
-            split_index = i+1
+            split_index = i + 1
             keep_extending = True
             while keep_extending:
                 if split_index < len(sorted_x_y) and sorted_x_y[split_index] == feature_val:
@@ -246,13 +245,24 @@ class DecisionTreeBase:
 
             less_Y = np.array([y for x,y in sorted_x_y[0:split_index]])
             more_Y = np.array([y for x,y in sorted_x_y[split_index:]])
+            less_X = np.array([x for x,y in sorted_x_y[0:split_index]])
+            more_X = np.array([x for x,y in sorted_x_y[split_index:]])
+
+            yield less_X, less_Y, more_X, more_Y, feature_val
+
+
+    def split_data_for_given_numerical_feature_index(self, X, Y, feature_index, current_score):
+        # given an index/feature to look at, split X and Y into groups
+        # The feature is numerical, look over all possible <= splits on values and return the 
+        # best split
+        best_improvement = float('-inf')
+        for split_return in self.generate_numerical_splits(X, Y, feature_index):
+            less_X, less_Y, more_X, more_Y, feature_val = split_return
             Y_split = (less_Y, more_Y)
             new_improvement = self.improvement_function(current_score, Y_split, len(Y))
             if new_improvement > best_improvement:
                 best_improvement = new_improvement
                 threshold_val = feature_val
-                less_X = np.array([x for x,y in sorted_x_y[0:split_index]])
-                more_X = np.array([x for x,y in sorted_x_y[split_index:]])
                 best_Y_split = {'less': less_Y, 'greater': more_Y}
                 best_X_split = {'less': less_X, 'greater': more_X}
 
@@ -274,7 +284,7 @@ class DecisionTreeBase:
             return terminal_node, None, None
 
         best_improvement = 0
-        best_Y_split = None
+        best_X_split = None
         best_Y_split = None
         for index in self.feature_indices_to_sample(total_num_features=X.shape[1]):
             if index_to_feature_type[index] == 'categorical':
@@ -296,11 +306,6 @@ class DecisionTreeBase:
             terminal_node = self.create_terminal_node(Y)
             return terminal_node, None, None
 
-        #print(f'best node index = {best_node.feature_index}')
-        #print(f'best improvement = {best_improvement}')
-
-        #print(f'best X_split =  {best_X_split}')
-        #print(f'best Y_split =  {best_Y_split}')        
         return best_node, best_X_split, best_Y_split
 
 
@@ -366,3 +371,39 @@ class DecisionTreeRegressor(DecisionTreeBase):
             # we have already split on each attribute, and this is as good as we get
             return self.create_terminal_node(Y, mean=mean)
         return None
+
+class DecisionTreeStump(DecisionTreeBase):
+
+    def __init__(self, max_depth=None):
+        super().__init__(max_depth=1)
+
+
+
+    def score_function(self, *args):
+        return entropy(*args)
+
+    def improvement_function(self, *args):
+        return gain(*args)
+
+    def create_terminal_node(self, Y, mean=None):
+        if mean is None:
+            mean = Y.mean()
+        return TerminalNode(return_val=round(mean))
+
+    def possibly_create_terminal_node(self, X, Y, depth, *args):
+        if depth > self.max_depth:
+            return self.create_terminal_node(Y)
+        sum_Y = sum(Y)
+        if sum_Y == len(Y):
+            #print('positive endpoint')
+            #return PositiveTerminalNode(), None, None
+            return TerminalNode(return_val=1)
+        if sum_Y == 0:
+            #print('negative endpoint')
+            return TerminalNode(return_val=0)
+
+        return None
+
+    def fit(self, weights=None, *args, **kwargs):
+        self.weights = weights # a bit hacky to set it in the class, but otherwise needs a bigger refactor in all the tree classes
+        super().fit(*args, **kwargs)

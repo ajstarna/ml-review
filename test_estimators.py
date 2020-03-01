@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from mlreview.trees.decision_tree import DecisionTreeClassifier
-from mlreview.trees.decision_tree import DecisionTreeRegressor
+from mlreview.trees.decision_tree import DecisionTreeClassifier, DecisionTreeRegressor
+from mlreview.boosting.ada_boost import AdaBoostClassifier
 from mlreview.utils.featurizing import DictVectorizer
 from mlreview.utils.evaluation import cross_validation
 
@@ -39,8 +39,13 @@ def test_classifier_toy(classifier):
     print(vectorizer.feature_to_index)
     print(vectorizer.index_to_feature_type)
 
+    try:
+        classifier.set_index_to_feature_type(index_to_feature_type=vectorizer.index_to_feature_type)
+    except:
+        # kinda gross. i wanna refactor this to not need the vectorizer to pass in this info.
+        # just let the fit methods figure this out. less work then for the general API
+        pass
 
-    classifier.set_index_to_feature_type(index_to_feature_type=vectorizer.index_to_feature_type)
     classifier.fit(data, Y)
     # tree.print_tree()
     x = vectorizer.transform({'outlook': 'rain', 'temperature':'mild', 
@@ -48,7 +53,7 @@ def test_classifier_toy(classifier):
     print(f"predicting: ['rain', 'mild', 'normal', 'weak'] = {x}")
     print(classifier.predict(x))
 
-    cross_validation(classifier, data, Y, task_type='classification', num_folds =len(Y))
+    cross_validation(classifier, data, Y, task_type='classification', num_folds=3)
 
 
 def test_classifier_breast_cancer(classifier):
@@ -132,16 +137,24 @@ if __name__ == "__main__":
     elif args.estimator == 'linear_regression':
         pass
     elif args.estimator == 'ada_boost':
-        pass
+        classifier = AdaBoostClassifier()
+    else:
+        print('Unknown estimator!')
+        exit()
+    
     
 
-    if args.test_set == 'ct':
+    if args.test_set in ['ct', 'all']:
+        print('Toy classifier test')
         test_classifier_toy(classifier)
-    elif args.test_set == 'cb':
+    elif args.test_set in ['cb', 'all']:
+        print('Cancer classifier test')
         test_classifier_breast_cancer(classifier)
-    elif args.test_set == 'rt':
+    elif args.test_set in ['rt', 'all']:
+        print('Toy reggressor test')
         test_regressor_toy(regressor)
-    elif args.test_set == 'rb':
+    elif args.test_set in ['rb', 'all']:
+        print('Boston house regressor test')
         test_regressor_boston_house(regressor)
     else:
         print('Unknown test set')
