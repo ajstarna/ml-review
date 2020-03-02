@@ -66,6 +66,7 @@ def cross_validation(model, X, Y, task_type, num_folds=5):
     predictions = None
     truth = None
     for training_X, training_Y, holdout_X, holdout_Y in KFolds(X, Y, num_folds=num_folds):
+        print(f"Fold!")
         model.fit(training_X, training_Y)
         #model.print_tree()
         current_predictions = model.predict(holdout_X)

@@ -46,14 +46,15 @@ def test_classifier_toy(classifier):
         # just let the fit methods figure this out. less work then for the general API
         pass
 
-    classifier.fit(data, Y)
-    # tree.print_tree()
+    #classifier.fit(data, Y)
+    #classifier.print_tree()
     x = vectorizer.transform({'outlook': 'rain', 'temperature':'mild', 
                               'humidity': 'normal', 'wind': 'weak'})
-    print(f"predicting: ['rain', 'mild', 'normal', 'weak'] = {x}")
-    print(classifier.predict(x))
+    #print(f"predicting: ['rain', 'mild', 'normal', 'weak'] = {x}")
+    #print(classifier.predict(x))
 
     cross_validation(classifier, data, Y, task_type='classification', num_folds=3)
+
 
 
 def test_classifier_breast_cancer(classifier):
@@ -62,7 +63,7 @@ def test_classifier_breast_cancer(classifier):
     index_to_feature_type = defaultdict(lambda: 'numerical')
     classifier.set_index_to_feature_type(index_to_feature_type)
     classifier.fit(d.data, d.target)
-    cross_validation(classifier, d.data, d.target, task_type='classification')
+    cross_validation(classifier, d.data, d.target, task_type='classification', num_folds=3)
     # p=0.9371428571428572, r=0.923943661971831, f=0.9304964539007092 for tree
 
 
@@ -137,7 +138,7 @@ if __name__ == "__main__":
     elif args.estimator == 'linear_regression':
         pass
     elif args.estimator == 'ada_boost':
-        classifier = AdaBoostClassifier()
+        classifier = AdaBoostClassifier(num_estimators=2)
     else:
         print('Unknown estimator!')
         exit()

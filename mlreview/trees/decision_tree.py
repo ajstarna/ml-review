@@ -49,7 +49,15 @@ def standard_deviation_reduction(current_standard_deviation, Y_split, total_Y_le
     reduction = current_standard_deviation - new_standard_deviation # if new standard deviation is lower, then reduction is postive,
     return reduction
 
+############## For Decision Stump ##############
 
+def weighted_error(Y, preds, weights):
+    misclassifications = preds != Y
+    # we get the weights of data that we incorrectly labelled
+    misclassification_weights = misclassifications * weights
+    # error is relative to the weights of each data
+    error =  np.sum(misclassification_weights) / np.sum(weights)
+    return error
 
 
 class Node:
@@ -130,7 +138,7 @@ class NumericalNode(Node):
         print(f'{tab}entering subtree for val > {self.threshold_val}')
         self.greater_than_child.print_self_and_subtree(indent_level=indent_level+1)
 
-
+        
 
 class DecisionTreeBase:
 
@@ -220,15 +228,23 @@ class DecisionTreeBase:
         return node, X_split, Y_split
 
 
-    def generate_numerical_splits(self, X, Y, feature_index):
+    def generate_numerical_splits(self, X, Y, feature_index, weights=None):
         # For a given feature index, this generator yeilds all the possible splits based on x values
         # at that given index. 
         # The less_Xs all have a feature value less than OR EQUAL TO the returned feature_val, 
         # while the more_Xs all have a feature val greater than
-        sorted_x_y = sorted([(x, y) for x, y in zip(X,Y)], key=lambda tup: tup[0][feature_index])
+
+        if weights is not None:
+            # getting a little gross with passing weights in now way after the fact...
+            sorted_data = sorted([(x, y, w) for x, y, w in zip(X,Y,weights)], key=lambda tup: tup[0][feature_index])
+        else:
+            sorted_data = sorted([(x, y) for x, y in zip(X,Y)], key=lambda tup: tup[0][feature_index])
         used_vals = set()
-        for i, x_y in enumerate(sorted_x_y):
-            x, y = x_y
+        for i, data in enumerate(sorted_data):
+            if weights is not None:
+                x, y, w = data
+            else:
+                x, y = data
             feature_val = x[feature_index]
             if feature_val in used_vals:
                 continue
@@ -238,17 +254,26 @@ class DecisionTreeBase:
             split_index = i + 1
             keep_extending = True
             while keep_extending:
-                if split_index < len(sorted_x_y) and sorted_x_y[split_index] == feature_val:
+                if split_index < len(sorted_data) and sorted_data[split_index] == feature_val:
                     split_index += 1
                 else:
                     keep_extending = False
 
-            less_Y = np.array([y for x,y in sorted_x_y[0:split_index]])
-            more_Y = np.array([y for x,y in sorted_x_y[split_index:]])
-            less_X = np.array([x for x,y in sorted_x_y[0:split_index]])
-            more_X = np.array([x for x,y in sorted_x_y[split_index:]])
-
-            yield less_X, less_Y, more_X, more_Y, feature_val
+            if weights is not None:
+                # ahhh so gross... what have i done!
+                less_Y = np.array([y for x,y,w in sorted_data[0:split_index]])
+                more_Y = np.array([y for x,y,w in sorted_data[split_index:]])
+                less_X = np.array([x for x,y,w in sorted_data[0:split_index]])
+                more_X = np.array([x for x,y,w in sorted_data[split_index:]])
+                less_weights = np.array([w for x,y,w in sorted_data[0:split_index]])
+                more_weights = np.array([w for x,y,w in sorted_data[split_index:]])
+                yield less_X, less_Y, more_X, more_Y, feature_val, less_weights, more_weights
+            else:
+                less_Y = np.array([y for x,y in sorted_data[0:split_index]])
+                more_Y = np.array([y for x,y in sorted_data[split_index:]])
+                less_X = np.array([x for x,y in sorted_data[0:split_index]])
+                more_X = np.array([x for x,y in sorted_data[split_index:]])
+                yield less_X, less_Y, more_X, more_Y, feature_val
 
 
     def split_data_for_given_numerical_feature_index(self, X, Y, feature_index, current_score):
@@ -313,7 +338,7 @@ class DecisionTreeBase:
         predictions = []
         for x in X:
             predictions.append(self.root.evaluate(x))
-        return predictions
+        return np.array(predictions)
 
 
 
@@ -378,7 +403,7 @@ class DecisionTreeStump(DecisionTreeBase):
         super().__init__(max_depth=1)
 
 
-
+                             
     def score_function(self, *args):
         return entropy(*args)
 
@@ -388,7 +413,91 @@ class DecisionTreeStump(DecisionTreeBase):
     def create_terminal_node(self, Y, mean=None):
         if mean is None:
             mean = Y.mean()
-        return TerminalNode(return_val=round(mean))
+        val = round(mean)
+        #if val == 0:
+        #    val = -1 # for estimator weighting in ada boost
+        return TerminalNode(return_val=val)
+
+
+
+    def split_data_for_given_categorical_feature_index(self, X, Y, feature_index, weights):
+        # given an index/feature to look at, split X and Y into groups
+        # The corresponding feature is categorical, just split for each possible value 
+        X_split = defaultdict(list)
+        Y_split = defaultdict(list)
+        weights_split = defaultdict(list)
+        for x, y in zip(X, Y):
+            # get each split by feature value
+            # the key is the value of feature at index, and it maps to a list of all
+            # xs or ys for those corresponding values
+            X_split[x[feature_index]].append(x)
+            Y_split[x[feature_index]].append(y)
+            weights_split[x[feature_index]].append(y)
+
+        node = CategoricalNode(feature_index=feature_index)#, all_feature_vals=all_feature_vals)
+
+        for val in X_split.keys():
+            X_split[val] = np.array(X_split[val])
+        for val in Y_split.keys():
+            Y_split[val] = np.array(Y_split[val])
+        return node, X_split, Y_split, weights_split
+
+
+
+    def get_preds_by_common(self, Y):
+        # just returns the majority classification as an array
+        if np.sum(Y) > (Y.shape[0] / 2):
+            return np.ones(Y.shape[0])
+        else:
+            return np.zeros(Y.shape[0])
+
+    def get_error_from_split(self, Y_split, weights_split):
+        all_Ys = []
+        all_preds = []
+        all_weights = []
+        for name in Y_split:
+            Y = Y_split[name]
+            all_Ys.append(Y)
+
+            weights = weights_split[name]
+            all_weights.append(weights)
+
+            preds = self.get_preds_by_common(Y)
+
+            all_preds.append(preds)
+
+        total_Y = np.concatenate(all_Ys)
+        total_preds = np.concatenate(all_preds)
+        total_weights = np.concatenate(all_weights)
+        error = weighted_error(total_Y, total_preds, total_weights)
+        return error
+
+    def split_data_for_given_numerical_feature_index(self, X, Y, feature_index, weights):
+        # given an index/feature to look at, split X and Y into groups
+        # The feature is numerical, look over all possible <= splits on values and return the 
+        # best split
+        best_error = float('inf')
+        #print(f'about to gen on feature index {feature_index}')
+        for split_return in self.generate_numerical_splits(X, Y, feature_index, weights):
+            less_X, less_Y, more_X, more_Y, feature_val, less_weights, more_weights = split_return
+            X_split = {'less': less_X, 'greater': more_X}
+            Y_split = {'less': less_Y, 'greater': more_Y}
+            weights_split = {'less': less_weights, 'greater': more_weights}
+            error = self.get_error_from_split(Y_split, weights_split)
+            if error < best_error:
+                #print('new best')
+                #print(f'error = {error}')
+                best_error = error
+                threshold_val = feature_val
+                best_Y_split = Y_split
+                best_X_split = X_split
+        node = NumericalNode(feature_index=feature_index, threshold_val=threshold_val)
+        return node, best_X_split, best_Y_split, best_error
+                                                                        
+    def fit(self, X, Y, index_to_feature_type=None, weights=None):
+        self.weights = weights # sorta hacky but dont want to refactor more of base tree
+        super().fit(X, Y, index_to_feature_type=index_to_feature_type)
+
 
     def possibly_create_terminal_node(self, X, Y, depth, *args):
         if depth > self.max_depth:
@@ -404,6 +513,29 @@ class DecisionTreeStump(DecisionTreeBase):
 
         return None
 
-    def fit(self, weights=None, *args, **kwargs):
-        self.weights = weights # a bit hacky to set it in the class, but otherwise needs a bigger refactor in all the tree classes
-        super().fit(*args, **kwargs)
+
+    def find_split(self, X, Y, depth, index_to_feature_type):                   
+        terminal_node = self.possibly_create_terminal_node(X, Y, depth)
+
+        if terminal_node is not None:
+            # if we are at the end, for any condition, then terminal_node will be non-None,
+            #print(f'terminal node with val of {terminal_node.return_val}')
+            return terminal_node, None, None
+
+        best_error = float('inf')
+        for index in self.feature_indices_to_sample(total_num_features=X.shape[1]):
+            if index_to_feature_type[index] == 'categorical':
+                node, X_split, Y_split, weights_split = self.split_data_for_given_categorical_feature_index(X, Y, index, self.weights)
+                error = self.get_error_from_split(Y_split, weights_split)
+            else:
+                node, X_split, Y_split, error = self.split_data_for_given_numerical_feature_index(X, Y, index, self.weights)
+
+            if error < best_error:
+                best_error = error
+                best_node = node
+                best_X_split = X_split
+                best_Y_split = Y_split
+
+
+        return best_node, best_X_split, best_Y_split
+
