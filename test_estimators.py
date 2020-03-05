@@ -62,8 +62,9 @@ def test_classifier_breast_cancer(classifier):
     d = load_breast_cancer()
     index_to_feature_type = defaultdict(lambda: 'numerical')
     classifier.set_index_to_feature_type(index_to_feature_type)
-    classifier.fit(d.data, d.target)
-    cross_validation(classifier, d.data, d.target, task_type='classification', num_folds=5)
+    #classifier.fit(d.data, d.target)
+    print(d.data.shape)
+    cross_validation(classifier, d.data, d.target, task_type='classification', num_folds=3)
     # tree: p=0.9371428571428572, r=0.923943661971831, f=0.9304964539007092
 
     # ada boost: for 4 folds and 4 estimators:
@@ -144,7 +145,7 @@ if __name__ == "__main__":
     elif args.estimator == 'linear_regression':
         pass
     elif args.estimator == 'ada_boost':
-        classifier = AdaBoostClassifier(num_estimators=10)
+        classifier = AdaBoostClassifier(num_estimators=25)
     else:
         print('Unknown estimator!')
         exit()

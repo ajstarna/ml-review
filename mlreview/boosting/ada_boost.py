@@ -12,8 +12,9 @@ import numpy as np
 
 class AdaBoostClassifier:
 
-    def __init__(self, num_estimators=10):
+    def __init__(self, num_estimators=10, delta_stop=0.01):
         self.num_estimators = num_estimators
+        self.delta_stop = delta_stop
 
     def set_index_to_feature_type(self, index_to_feature_type):
         self.index_to_feature_type = index_to_feature_type
@@ -32,6 +33,7 @@ class AdaBoostClassifier:
         self.all_estimators = [] # will keep track of each stump and their corresponding weights
         print('Y')
         print(Y)
+        error = None
         for i in range(self.num_estimators):
             print(f'estimator {i} of {self.num_estimators}')
             e_i = DecisionTreeStump()
@@ -44,11 +46,16 @@ class AdaBoostClassifier:
             #print(misclassifications)
             # we get the weights of data that we incorrectly labelled
             misclassification_weights = misclassifications * weights
-            #print(misclassification_weights)
+            print('misclassification_weights')
+            print(misclassification_weights)
 
             # error is relative to the weights of each data
-            error =  np.sum(misclassification_weights) / np.sum(weights)
-
+            new_error =  np.sum(misclassification_weights) / np.sum(weights)
+            if error is not None and abs(error - new_error) < self.delta_stop:
+                print(f'Stopping on iteration {i} since error ({new_error}) has stopped changing')
+                break
+            error = new_error
+            print(f'error = {error}')
             # the stage value represents how well the current estimator does at classifying the data
             stage_value = np.log((1 - error) / error)
             
@@ -60,8 +67,8 @@ class AdaBoostClassifier:
 
             # then finally normalize the weights so that they sum to 1
             weights = weights / np.sum(weights)
-            #print(f'new weights = {weights}')
-            
+            print(f'new weights = {weights}')
+            print(f'sum of new weights = {sum(weights)}')
             self.all_estimators.append((e_i, stage_value))
         print("done fitting:")
         print(self.all_estimators)
