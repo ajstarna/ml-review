@@ -33,17 +33,18 @@ class AdaBoostClassifier:
         print('Y')
         print(Y)
         for i in range(self.num_estimators):
+            print(f'estimator {i} of {self.num_estimators}')
             e_i = DecisionTreeStump()
             e_i.fit(X, Y, index_to_feature_type=self.index_to_feature_type, weights=weights)
             current_preds = e_i.predict(X)
-            print('current preds = ')
-            print(current_preds)
+            #print('current preds = ')
+            #print(current_preds)
             misclassifications = current_preds != Y
-            print('misclassifications array')
-            print(misclassifications)
+            #print('misclassifications array')
+            #print(misclassifications)
             # we get the weights of data that we incorrectly labelled
             misclassification_weights = misclassifications * weights
-            print(misclassification_weights)
+            #print(misclassification_weights)
 
             # error is relative to the weights of each data
             error =  np.sum(misclassification_weights) / np.sum(weights)
@@ -59,11 +60,15 @@ class AdaBoostClassifier:
 
             # then finally normalize the weights so that they sum to 1
             weights = weights / np.sum(weights)
-            print(f'new weights = {weights}')
+            #print(f'new weights = {weights}')
             
             self.all_estimators.append((e_i, stage_value))
+        print("done fitting:")
+        print(self.all_estimators)
 
     def predict_with_mapping(self, e_i, X):
+        # we need to map 0 predictions to -1, so that the various estimators can pull against each other
+        # the final prediction is based on whether the overall vote is positive or negative
         preds = e_i.predict(X)
         preds[preds == 0] = -1
         return preds

@@ -63,10 +63,16 @@ def test_classifier_breast_cancer(classifier):
     index_to_feature_type = defaultdict(lambda: 'numerical')
     classifier.set_index_to_feature_type(index_to_feature_type)
     classifier.fit(d.data, d.target)
-    cross_validation(classifier, d.data, d.target, task_type='classification', num_folds=3)
-    # p=0.9371428571428572, r=0.923943661971831, f=0.9304964539007092 for tree
+    cross_validation(classifier, d.data, d.target, task_type='classification', num_folds=5)
+    # tree: p=0.9371428571428572, r=0.923943661971831, f=0.9304964539007092
 
+    # ada boost: for 4 folds and 4 estimators:
+    # p=0.9305555555555556, r=0.938375350140056, f=0.9344490934449093
 
+    # ada boost: for 5 folds and 10 estimators
+    # p=0.9303621169916435, r=0.9461756373937678, f=0.9382022471910112
+    # most of the stage values are near 0. Is there a problem with the 0 versus -1 distinction?
+    # or everything fine hmm?
 
 def test_regressor_toy(regressor):
     X = [
@@ -138,7 +144,7 @@ if __name__ == "__main__":
     elif args.estimator == 'linear_regression':
         pass
     elif args.estimator == 'ada_boost':
-        classifier = AdaBoostClassifier(num_estimators=2)
+        classifier = AdaBoostClassifier(num_estimators=10)
     else:
         print('Unknown estimator!')
         exit()
