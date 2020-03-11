@@ -76,6 +76,14 @@ class TerminalNode:
         tab = "\t" * indent_level
         print(f'{tab}terminal val of {self.return_val}')
 
+    def predict(self, X):
+        '''
+        if a terminal node is ever used as an estimator by itself (like in gradient boost), it
+        requires a predict method. Simply predict the return val for all of it
+        '''
+        predictions = np.empty(X.shape[0])
+        predictions.fill(self.return_val)
+        return predictions
 
 class CategoricalNode(Node):
     def __init__(self, feature_index, all_feature_vals=None):
