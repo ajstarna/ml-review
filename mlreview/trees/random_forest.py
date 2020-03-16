@@ -10,7 +10,7 @@ import numpy as np
 
 class RandomForestBase:
 
-    def __init__(self, num_trees=10, num_features_to_sample_from=1, max_depth=None):
+    def __init__(self, num_trees=10, num_features_to_sample_from=None, max_depth=None):
         self.num_trees = num_trees
         self.num_features_to_sample_from = num_features_to_sample_from
         if max_depth is None:
@@ -23,6 +23,9 @@ class RandomForestBase:
     def fit(self, X, Y):
         self.trees = []
         self.data_index_to_trees_used = defaultdict(set) # if want to use for out-of-bag model evaluation
+        if self.num_features_to_sample_from is None:
+            # by default we look at 1/3 of the features
+            self.num_features_to_sample_from=(int(X.shape[1]/3))
         for i in range(self.num_trees):
             print(f"FITTING TREE {i}")
             data_dict = get_bootstrapped_data_set(X, Y)

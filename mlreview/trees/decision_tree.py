@@ -379,8 +379,6 @@ class DecisionTreeClassifier(DecisionTreeBase):
 class DecisionTreeRegressor(DecisionTreeBase):
 
     def __init__(self, coefficient_of_deviation_threshold=0.1, **kwargs):
-        print('kwargs')
-        print(kwargs)
         super().__init__(**kwargs)
         self.coefficient_of_deviation_threshold = coefficient_of_deviation_threshold
 

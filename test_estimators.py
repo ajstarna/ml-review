@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 from mlreview.trees.decision_tree import DecisionTreeClassifier, DecisionTreeRegressor
+from mlreview.trees.random_forest import RandomForestClassifier, RandomForestRegressor
 from mlreview.boosting.ada_boost import AdaBoostClassifier
+from mlreview.boosting.gradient_boosting import GradientBoostingRegressor
+
 from mlreview.utils.featurizing import DictVectorizer
 from mlreview.utils.evaluation import cross_validation
 
@@ -117,10 +120,20 @@ def test_regressor_boston_house(regressor):
     d = load_boston()
     index_to_feature_type = defaultdict(lambda: 'numerical')
     regressor.set_index_to_feature_type(index_to_feature_type)
-    regressor.fit(d.data, d.target)
-    #tree.print_tree()
-    #cross_validation(tree, d.data, d.target, task_type='regression', num_folds=5)
+    #regressor.fit(d.data, d.target)
+    cross_validation(regressor, d.data, d.target, task_type='regression', num_folds=5)
 
+    # decision tree no max depth --> MSE 23.56
+    # decision tree 10 max depth --> MSE 23.00
+    # decision tree 5 max depth --> MSE 19.2
+    # decision tree 3 max depth --> MSE 18.6
+    # decision tree 2 max depth --> MSE 21.07
+    # decision tree 1 max depth --> MSE 28.99
+
+    # random forest 10 trees, no max depth, and default=1/3 features to sample --> MSE 17.17
+    # random forest 30 trees, 5 max depth, and default=1/3 features to sample --> MSE 15.86
+    # random forest 30 trees, 3 max depth, and default=1/3 features to sample --> MSE 16.28
+    # random forest 30 trees, 2 max depth, and default=1/3 features to sample --> MSE 21.4
 
 
 
@@ -139,13 +152,17 @@ if __name__ == "__main__":
 
     if args.estimator == 'tree':
         classifier = DecisionTreeClassifier()
-        regressor = DecisionTreeRegressor(max_depth=1)
-    elif args.estimator == 'random_forest':
+        regressor = DecisionTreeRegressor(max_depth=1) 
+    elif args.estimator in ['random_forest', 'rf']:
+        classifier = RandomForestClassifier()
+        regressor = RandomForestRegressor(num_trees=30, max_depth=2)
+    elif args.estimator in ['linear_regression', 'lr']:
         pass
-    elif args.estimator == 'linear_regression':
-        pass
-    elif args.estimator == 'ada_boost':
+    elif args.estimator in ['ada_boost', 'ab']:
         classifier = AdaBoostClassifier(num_estimators=25)
+    elif args.estimator in ['grad_boost', 'gb']:
+        # classifier = GradientBoostingClassifier(num_estimators=25)
+        regressor = GradientBoostingRegressor(num_estimators=30)
     else:
         print('Unknown estimator!')
         exit()

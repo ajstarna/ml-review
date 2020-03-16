@@ -70,10 +70,10 @@ def cross_validation(model, X, Y, task_type, num_folds=5):
         model.fit(training_X, training_Y)
         #model.print_tree()
         current_predictions = model.predict(holdout_X)
-        print('preds')
-        print(predictions)
-        print('current preds')
-        print(current_predictions)
+        #print('preds')
+        #print(predictions)
+        #print('current preds')
+        #print(current_predictions)
         if predictions is None:
             predictions = current_predictions
         else:

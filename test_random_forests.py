@@ -142,7 +142,7 @@ def test_decision_tree_regressor_boston_house():
 
 #test_random_forest_classifier_toy()
 
-test_random_forest_classifier_breast_cancer()
+#test_random_forest_classifier_breast_cancer()
 
-#test_decision_tree_regressor_toy()
+test_decision_tree_regressor_toy()
 #test_decision_tree_regressor_boston_house()
